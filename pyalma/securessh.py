@@ -30,7 +30,7 @@ class SecureSshClient(SshClient):
     """
     def __init__(self, server="alma.icr.ac.uk", username=None, sftp="alma-app.icr.ac.uk", port=22):
         logging.info("🔐 Secure mode: only key-based login allowed.")
-        super().__init__(server=server, username=username, password=None, sftp=sftp, port=port)
+        super().__init__(server=server, username=username, password=None, sftp=sftp, port=port, gss_auth=False)
 
     def __del__(self):
         """

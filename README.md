@@ -60,6 +60,30 @@ print(result["output"])
 print(result["err"])
 ```
 
+## For remote access using Kerberos authentication
+Kerberos requires a valid ticket on the local host before attempting a connection. To create a Ticket Granting Ticket (TGT), run:
+```bash
+kinit msarkis@ICR.AC.UK
+```
+* Replace msarkis with your actual username.
+* This generates a Ticket Granting Ticket (TGT) with a default validity of 10 hours.
+* You will need to renew or recreate the ticket once it expires.
+
+```
+from pyalma import KerberosClient
+kerberos_ssh = KerberosClient(server="your_server", username="your_username")
+result = kerberos_ssh.run_cmd("ls -l")
+print(result["output"])
+print(result["err"])
+```
+
+Notes:
+
+* This authentication method only works with servers that support Kerberos.
+* At ICR, a test server sjane is available for experimenting.
+* When you SSH using gssapi-with-mic, the client automatically requests a service ticket for host/sjane@ICR.AC.UK from the Kerberos Key Distribution Center (KDC).
+
+
 ## For local access, from within python
 ```
 from pyalma import LocalFileReader

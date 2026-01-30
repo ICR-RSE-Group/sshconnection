@@ -15,7 +15,7 @@ class SshClient(FileReader):
     Enables reading, writing, listing, and transferring files on a remote server securely.
     """
 
-    def __init__(self, server="alma.icr.ac.uk", username=None, password=None, sftp="alma-app.icr.ac.uk", port=22):
+    def __init__(self, server="alma.icr.ac.uk", username=None, password=None, sftp="alma-app.icr.ac.uk", port=22, gss_auth=False):
         """
         Initialize SSH and SFTP connection parameters.
 
@@ -37,7 +37,11 @@ class SshClient(FileReader):
         self.port = port
         self.filter_file = os.path.join(os.path.dirname(__file__), "config", "messages.yaml")
         self.filtered_patterns = self._load_filtered_patterns()
-        self._connect(password=self.password)
+        self.gss_auth = gss_auth #required for kerberos authentication
+        self.gss_kex = False 
+        if gss_auth: #not sure if required 
+            self.gss_kex=True 
+        self._connect(password=self.password,gss_auth=self.gss_auth, gss_kex=self.gss_kex)
 
     def _create_ssh_client(self):
         client = paramiko.SSHClient()

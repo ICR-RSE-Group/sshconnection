@@ -11,3 +11,4 @@ setuptools_scm
 coverage
 pyyaml
 Pillow>=10.0.0
+paramiko[gssapi]>=1.9.0
