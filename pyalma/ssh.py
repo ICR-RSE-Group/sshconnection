@@ -15,7 +15,8 @@ class SshClient(FileReader):
     Enables reading, writing, listing, and transferring files on a remote server securely.
     """
 
-    def __init__(self, server="alma.icr.ac.uk", username=None, password=None, sftp="alma-app.icr.ac.uk", port=22):
+    def __init__(self, server="alma.icr.ac.uk", username=None, password=None, sftp="alma-app.icr.ac.uk", port=22,
+                 key_filename=None, passphrase=None):
         """
         Initialize SSH and SFTP connection parameters.
 
@@ -27,6 +28,13 @@ class SshClient(FileReader):
         :type password: str
         :param sftp: SFTP host (defaults to `server` if not specified).
         :type sftp: str
+        :param key_filename: Explicit private key path(s) to authenticate with. If not
+            given, falls back to the IdentityFile(s) declared for this host in
+            ``~/.ssh/config`` (Paramiko does not read that file on its own), then to
+            Paramiko's normal ssh-agent/default-key discovery.
+        :type key_filename: str | list[str] | None
+        :param passphrase: Passphrase for an encrypted private key, if needed.
+        :type passphrase: str | None
         """
         super().__init__()
         self.remote = True
@@ -35,6 +43,10 @@ class SshClient(FileReader):
         self.username = username.strip() if username else None
         self.password = password.strip() if password else None
         self.port = port
+        self.passphrase = passphrase
+        self.key_filename = key_filename \
+            or self._resolve_identity_files(self.server) \
+            or self._resolve_identity_files(self.sftp)
         self.filter_file = os.path.join(os.path.dirname(__file__), "config", "messages.yaml")
         self.filtered_patterns = self._load_filtered_patterns()
         self._connect(password=self.password)
@@ -44,7 +56,38 @@ class SshClient(FileReader):
         client.load_system_host_keys()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         return client
-    
+
+    @staticmethod
+    def _resolve_identity_files(hostname, config_path="~/.ssh/config"):
+        """
+        Look up the IdentityFile(s) configured for `hostname` in the user's SSH config.
+
+        Paramiko's ``SSHClient.connect`` never reads ``~/.ssh/config``, so a host alias
+        that pins a non-default-named key (as VS Code Remote-SSH setups often do) is
+        silently ignored and connect() falls back to the ssh-agent or default key
+        filenames instead - authenticating with the wrong key and failing silently.
+
+        :param hostname: Host (as passed to `connect`) to look up.
+        :type hostname: str
+        :param config_path: Path to the SSH config file to consult.
+        :type config_path: str
+        :return: Expanded identity file paths, or None if none are configured/found.
+        :rtype: list[str] | None
+        """
+        path = os.path.expanduser(config_path)
+        if not os.path.isfile(path):
+            return None
+        try:
+            ssh_config = paramiko.SSHConfig()
+            with open(path) as f:
+                ssh_config.parse(f)
+            identity_files = ssh_config.lookup(hostname).get("identityfile")
+            if identity_files:
+                return [os.path.expanduser(p) for p in identity_files]
+        except Exception as e:
+            logging.warning(f"⚠️ [_resolve_identity_files]: Could not read {config_path}: {e}")
+        return None
+
     def _connect(self,**kwargs):
         """
         Establish SSH and SFTP connections using Paramiko.
@@ -54,6 +97,11 @@ class SshClient(FileReader):
         self.ssh_client = self._create_ssh_client()
         self.sftp_ssh_client = self._create_ssh_client()
         self.sftp_client = None
+
+        if self.key_filename:
+            kwargs.setdefault("key_filename", self.key_filename)
+        if self.passphrase:
+            kwargs.setdefault("passphrase", self.passphrase)
 
         try:
             self.ssh_client.connect(self.server, username=self.username, timeout=30, port=self.port, **kwargs)
