@@ -23,14 +23,20 @@ class SecureSshClient(SshClient):
         sftp (str): The remote path or hostname for SFTP access.
                     Defaults to "alma-app.icr.ac.uk".
         port (int): SSH port number. Defaults to 22.
+        key_filename (str | list[str] | None): Explicit private key path(s). If omitted,
+                      resolved from the IdentityFile(s) set for this host in ~/.ssh/config,
+                      then from Paramiko's own ssh-agent/default-key discovery.
+        passphrase (str | None): Passphrase for an encrypted private key, if needed.
 
     Usage:
         client = SecureSshClient(username="your_username")
         # Connects automatically on initialization using key-based auth.
     """
-    def __init__(self, server="alma.icr.ac.uk", username=None, sftp="alma-app.icr.ac.uk", port=22):
+    def __init__(self, server="alma.icr.ac.uk", username=None, sftp="alma-app.icr.ac.uk", port=22,
+                 key_filename=None, passphrase=None):
         logging.info("🔐 Secure mode: only key-based login allowed.")
-        super().__init__(server=server, username=username, password=None, sftp=sftp, port=port)
+        super().__init__(server=server, username=username, password=None, sftp=sftp, port=port,
+                          key_filename=key_filename, passphrase=passphrase)
 
     def __del__(self):
         """
